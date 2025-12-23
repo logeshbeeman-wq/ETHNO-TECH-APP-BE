@@ -1,3 +1,4 @@
+// src/schema/typeDefs.js
 import { gql } from 'graphql-tag';
 
 export const typeDefs = gql`
@@ -5,8 +6,11 @@ export const typeDefs = gql`
     id: ID!
     username: String!
     email: String!
+    phoneNumber: String
     role: String!
+    status: String!
     createdAt: String!
+    updatedAt: String
   }
 
   type AuthPayload {
@@ -18,28 +22,39 @@ export const typeDefs = gql`
     username: String!
     email: String!
     password: String!
+    phoneNumber: String!
     role: String
+    status: String
   }
 
-  input LoginInput {
-    email: String!
-    password: String!
+  input UpdateUserInput {
+    id: ID!
+    username: String
+    email: String
+    password: String
+    phoneNumber: String
+    role: String
+    status: String
   }
 
   type Query {
-    me: User
-    users: [User!]! @auth(requires: ADMIN)
+    # User queries
+    user(id: ID!): User
+    allUsers: [User!]!
+    regularUsers: [User!]!
+    
+    # Add other queries here
   }
 
   type Mutation {
+    # Auth mutations
     register(input: RegisterInput!): AuthPayload!
-    login(input: LoginInput!): AuthPayload!
-  }
-
-  directive @auth(requires: Role = USER) on FIELD_DEFINITION
-
-  enum Role {
-    USER
-    ADMIN
+    login(email: String!, password: String!): AuthPayload!
+    
+    # User mutations
+    updateUser(input: UpdateUserInput!): User!
+    deleteUser(id: ID!): Boolean!
+    
+    # Add other mutations here
   }
 `;
