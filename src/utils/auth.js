@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'ec38c1e12f69ed4583c985e21062b3e389b938ffc3f930672fcc929160820282';
 const JWT_EXPIRES_IN = '7d';
 
 export const generateToken = (userId, role) => {

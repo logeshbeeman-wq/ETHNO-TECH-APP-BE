@@ -8,16 +8,21 @@ export const authResolvers = {
       return user;
     },
     users: async (_, __, { user, db }) => {
-      if (!user || user.role !== 'admin') {
+      if (!user || user.role !== 'superadmin') {
         throw new Error('Not authorized');
       }
       return db.user.getAll();
     }
   },
   Mutation: {
-    register: async (_, { input }, { db }) => {
+    register: async (_, { input }, { user: currentUser, db }) => {
       try {
-        const { username, email, password, role = 'user' } = input;
+        const { username, email, password, phoneNumber, role = 'user' } = input;
+        
+        // Only allow admins to create users with roles other than 'user'
+        if (role !== 'user' && (!currentUser || currentUser.role !== 'admin')) {
+          throw new Error('Not authorized to create users with this role');
+        }
         
         // Check if user already exists
         const existingUser = await db.user.findByEmail(email) || await db.user.findByUsername(username);
@@ -25,8 +30,19 @@ export const authResolvers = {
           throw new Error('User with this email or username already exists');
         }
 
-        // Create new user
-        const newUser = await db.user.create({ username, email, password, role });
+        // Validate required fields
+        if (!phoneNumber) {
+          throw new Error('Phone number is required');
+        }
+
+        // Create new user with the specified role
+        const newUser = await db.user.create({ 
+          username, 
+          email, 
+          password, 
+          phoneNumber, 
+          role: role || 'user' // Default to 'user' if no role is specified
+        });
         const token = generateToken({ userId: newUser.id, role: newUser.role });
         
         return {

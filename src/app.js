@@ -69,7 +69,7 @@ export default async function createApolloServer() {
                            userAgent.includes('PostmanRuntime');
     
     if (isBrowserRequest && !req.path.startsWith('/health')) {
-      console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - ${userAgent.split(' ')[0]}`);
+      // console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - ${userAgent.split(' ')[0]}`);
     }
     next();
   });
@@ -146,9 +146,9 @@ export default async function createApolloServer() {
       
       res.send = function (body) {
         const operation = req.body?.operationName || 'Anonymous Operation';
-        console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - ${operation}`);
-        console.log(`Response time: ${Date.now() - start}ms`);
-        console.log('---');
+        // console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - ${operation}`);
+        // console.log(`Response time: ${Date.now() - start}ms`);
+        // console.log('---');
         return originalSend.call(this, body);
       };
       
@@ -156,25 +156,38 @@ export default async function createApolloServer() {
     },
     expressMiddleware(server, {
       context: async ({ req }) => {
-        const token = req.headers.authorization || '';
-        let user = null;
-        
-        if (token) {
-          try {
-            const decoded = verifyToken(token.replace('Bearer ', ''));
-            user = await new User(pool).findById(decoded.userId);
-          } catch (error) {
-            console.error('Error verifying token:', error.message);
-          }
-        }
+  // console.log('Request headers:', req.headers);
+  const authHeader = req.headers.authorization || '';
+  console.log('Auth header:', authHeader);
+  
+  let token = null;
+  if (authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  }
+  let user = null;
+  if (token) {
+    try {
+      console.log('Verifying token:', token);
+      const decoded = verifyToken(token); // Use the verifyToken function from auth.js
+      console.log('Decoded token:', decoded);
+      
+      // Extract user ID from the token
+      const userId = decoded.userId?.userId || decoded.userId;
+      if (userId) {
+        user = await new User(pool).findById(userId);
+        console.log('User found:', user ? user.id : 'Not found');
+      }
+    } catch (error) {
+      console.error('Token verification failed:', error.message);
+    }
+  }
+  
+  return { 
+    user,
+    db: { user: new User(pool) } 
+  };
+}
 
-        return {
-          user,
-          db: {
-            user: new User(pool)
-          }
-        };
-      },
     })
   );
 
@@ -216,6 +229,60 @@ app.get('/auth/google/callback',
     res.status(200).json({ status: 'OK' });
   });
 
+  // Add this to your app.js temporarily
+app.get('/test-db', async (req, res) => {
+  try {
+    // 1. Test connection
+    const conn = await pool.getConnection();
+    
+    // 2. Get database info
+    const [dbInfo] = await conn.query('SELECT DATABASE() as db, USER() as user, VERSION() as version');
+    
+    // 3. Check tables
+    const [tables] = await conn.query(`
+      SELECT TABLE_NAME, TABLE_ROWS, DATA_LENGTH, INDEX_LENGTH, TABLE_COLLATION 
+      FROM information_schema.TABLES 
+      WHERE TABLE_SCHEMA = ?
+    `, [dbInfo.db]);
+    
+    // 4. Get users data
+    let users = [];
+    if (tables.some(t => t.TABLE_NAME === 'users')) {
+      [users] = await conn.query('SELECT * FROM users');
+    }
+    
+    // 5. Release connection
+    conn.release();
+    
+    // 6. Send response
+    res.json({
+      success: true,
+      database: {
+        name: dbInfo.db,
+        user: dbInfo.user,
+        version: dbInfo.version
+      },
+      // tables: tables.map(t => ({
+      //   name: t.TABLE_NAME,
+      //   rows: t.TABLE_ROWS,
+      //   size: `${((t.DATA_LENGTH + t.INDEX_LENGTH) / 1024 / 1024).toFixed(2)} MB`,
+      //   collation: t.TABLE_COLLATION
+      // })),
+      users: {
+        count: users.length,
+        data: users
+      }
+    });
+    
+  } catch (error) {
+    console.error('Test endpoint error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
   // Error handling middleware
   app.use((err, req, res, next) => {
     console.error(err.stack);
