@@ -75,8 +75,8 @@ class CenterTraining {
             const rows = await this.connection.query(
                 `SELECT 
           id,
-          start_training_date as startTrainingDate,
-          end_training_date as endTrainingDate,
+          DATE_FORMAT(start_training_date, '%Y-%m-%d') as startTrainingDate,
+          DATE_FORMAT(end_training_date, '%Y-%m-%d') as endTrainingDate,
           center,
           strength,
           technology,
@@ -201,37 +201,65 @@ class CenterTraining {
     }
 
     // Filter by center
-    async findByCenter(center) {
-        try {
-            const rows = await this.connection.query(
-                `SELECT 
-          id,
-          start_training_date as startTrainingDate,
-          end_training_date as endTrainingDate,
-          center,
-          strength,
-          technology,
-          trainer_name as trainerName,
-          trainer_type as trainerType,
-          certification,
-          training_status as trainingStatus,
-          examination_status as examinationStatus,
-          employee_id as employeeId,
-          fdp,
-          created_at as createdAt,
-          updated_at as updatedAt
-        FROM center_training 
-        WHERE center = ?
-        ORDER BY created_at DESC`,
-                [center]
-            );
-
-            return rows;
-        } catch (error) {
-            console.error('Error finding center trainings by center:', error);
-            throw new Error('Failed to find center training records');
-        }
+    // In src/models/CenterTraining.js, update the findByCenter method
+async findByCenter(center) {
+    try {
+        const rows = await this.connection.query(`
+            SELECT 
+                id,
+                DATE_FORMAT(start_training_date, '%Y-%m-%d') as startTrainingDate,
+                DATE_FORMAT(end_training_date, '%Y-%m-%d') as endTrainingDate,
+                center,
+                strength,
+                technology,
+                trainer_name as trainerName,
+                trainer_type as trainerType,
+                certification,
+                training_status as trainingStatus,
+                examination_status as examinationStatus,
+                employee_id as employeeId,
+                fdp
+            FROM center_training 
+            WHERE center = ?
+            ORDER BY start_training_date DESC`, 
+            [center]
+        );
+        return rows;
+    } catch (error) {
+        console.error('Error finding center training by center:', error);
+        throw new Error(`Failed to find center training records: ${error.message}`);
     }
+}
+
+// In src/models/CenterTraining.js, update the findByTechnology method
+async findByTechnology(technology) {
+    try {
+        const rows = await this.connection.query(`
+            SELECT 
+                id,
+                DATE_FORMAT(start_training_date, '%Y-%m-%d') as startTrainingDate,
+                DATE_FORMAT(end_training_date, '%Y-%m-%d') as endTrainingDate,
+                center,
+                strength,
+                technology,
+                trainer_name as trainerName,
+                trainer_type as trainerType,
+                certification,
+                training_status as trainingStatus,
+                examination_status as examinationStatus,
+                employee_id as employeeId,
+                fdp
+            FROM center_training 
+            WHERE technology = ?
+            ORDER BY start_training_date DESC`, 
+            [technology]
+        );
+        return rows;
+    } catch (error) {
+        console.error('Error finding center training by technology:', error);
+        throw new Error(`Failed to find center training records: ${error.message}`);
+    }
+}
 
     // Filter by technology
     async findByTechnology(technology) {

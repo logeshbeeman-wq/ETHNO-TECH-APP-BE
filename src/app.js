@@ -283,11 +283,91 @@ app.get('/test-db', async (req, res) => {
     });
   }
 });
-  // Error handling middleware
-  app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ error: 'Something went wrong!' });
-  });
 
-  return { server, app, httpServer };
+// Dashboard API endpoint
+app.get('/api/dashboard/stats', async (req, res) => {
+  try {
+    // Get connection from pool
+    const conn = await pool.getConnection();
+    
+    try {
+      // Get counts for each trainee type
+      const [traineeCounts] = await conn.query(`
+        SELECT 
+          SUM(CASE WHEN trainer_type = 'Permanent' THEN 1 ELSE 0 END) as permanent_count,
+          SUM(CASE WHEN trainer_type = 'Contract' THEN 1 ELSE 0 END) as contract_count,
+          SUM(CASE WHEN trainer_type = 'Student' THEN 1 ELSE 0 END) as student_count,
+          SUM(CASE WHEN certification = 'Yes' THEN 1 ELSE 0 END) as certificate_count,
+          COUNT(*) as total_trainees
+        FROM batch_training
+        WHERE training_status = 'Completed' OR training_status = 'Ongoing'
+      `);
+
+      // Get employee training status
+      const [employeeTraining] = await conn.query(`
+        SELECT 
+          trainer_name as name,
+          trainer_type as type,
+          training_status as status,
+          certification as certificate,
+          departments as department
+        FROM batch_training
+        ORDER BY name
+        LIMIT 100
+      `);
+
+      // Calculate percentages
+      const total = traineeCounts.total_trainees || 1; // Avoid division by zero
+      const stats = {
+        keyMetrics: {
+          permanentTrainees: {
+            count: traineeCounts.permanent_count || 0,
+            percentage: Math.round(((traineeCounts.permanent_count || 0) / total) * 1000) / 10
+          },
+          contractTrainees: {
+            count: traineeCounts.contract_count || 0,
+            percentage: Math.round(((traineeCounts.contract_count || 0) / total) * 1000) / 10
+          },
+          studentsTrained: {
+            count: traineeCounts.student_count || 0,
+            percentage: Math.round(((traineeCounts.student_count || 0) / total) * 1000) / 10
+          },
+          certificateStudents: {
+            count: traineeCounts.certificate_count || 0,
+            percentage: Math.round(((traineeCounts.certificate_count || 0) / total) * 1000) / 10
+          }
+        },
+        traineeDistribution: {
+          permanent: traineeCounts.permanent_count || 0,
+          contract: traineeCounts.contract_count || 0,
+          student: traineeCounts.student_count || 0,
+          certificate: traineeCounts.certificate_count || 0
+        },
+        pieChartData: [
+          { name: 'Permanent', value: traineeCounts.permanent_count || 0 },
+          { name: 'Contract', value: traineeCounts.contract_count || 0 },
+          { name: 'Student', value: traineeCounts.student_count || 0 },
+          { name: 'Certificate', value: traineeCounts.certificate_count || 0 }
+        ],
+        employeeTrainingStatus: employeeTraining
+      };
+
+      res.json(stats);
+    } finally {
+      // Always release the connection back to the pool
+      if (conn) await conn.release();
+    }
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    res.status(500).json({ error: 'Failed to fetch dashboard data', details: error.message });
+  }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
+});
+
+return { server, app, httpServer };
 }

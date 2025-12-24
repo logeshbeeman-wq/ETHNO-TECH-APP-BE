@@ -95,17 +95,35 @@ class User {
   }
 
   // Get all users
-  async getAll() {
+  // In src/models/CenterTraining.js, update the getAll method
+async getAll() {
     try {
-      const result = await this.connection.query(
-        'SELECT id, username, email, role, status, created_at as createdAt FROM users'
-      );
-      return Array.isArray(result) ? result : [];
+        const rows = await this.connection.query(`
+            SELECT 
+                id,
+                DATE_FORMAT(start_training_date, '%Y-%m-%d') as startTrainingDate,
+                DATE_FORMAT(end_training_date, '%Y-%m-%d') as endTrainingDate,
+                center,
+                strength,
+                technology,
+                trainer_name as trainerName,
+                trainer_type as trainerType,
+                certification,
+                training_status as trainingStatus,
+                examination_status as examinationStatus,
+                employee_id as employeeId,
+                fdp,
+                created_at as createdAt,
+                updated_at as updatedAt
+            FROM center_training
+            ORDER BY start_training_date DESC
+        `);
+        return rows;
     } catch (error) {
-      console.error('Error getting all users:', error);
-      throw new Error('Failed to get users');
+        console.error('Error getting all center trainings:', error);
+        throw new Error(`Failed to get center training records: ${error.message}`);
     }
-  }
+}
 
   // In src/models/User.js
   // In src/models/User.js
