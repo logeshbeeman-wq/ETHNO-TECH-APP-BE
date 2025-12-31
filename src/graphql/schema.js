@@ -9,6 +9,8 @@ import { userTypeDefs } from './user.schema.js';
 import { trainingTypeDefs } from './training.schema.js';
 import { typeDefs as dashboardTypeDefs } from './dashboard/schema.js';
 import { resolvers as dashboardResolvers } from './dashboard/resolvers.js';
+import { employeeTypeDefs } from './employee.schema.js';
+import { employeeResolvers } from '../resolvers/employee.js';
 
 const baseTypeDefs = gql`
   type User {
@@ -44,10 +46,6 @@ const baseTypeDefs = gql`
     me: User
     users: [User!]!
     user(id: ID!): User
-    centerTrainings: [CenterTraining!]!
-    centerTraining(id: ID!): CenterTraining
-    batchTrainings: [BatchTraining!]!
-    batchTraining(id: ID!): BatchTraining
     dashboardStats: DashboardStats!
   }
 
@@ -56,25 +54,16 @@ const baseTypeDefs = gql`
     login(input: LoginInput!): AuthPayload!
     updateUser(input: UpdateUserInput!): User!
     deleteUser(id: ID!): Boolean!
-    
-    # Center Training Mutations
-    createCenterTraining(input: CenterTrainingInput!): CenterTraining!
-    updateCenterTraining(id: ID!, input: CenterTrainingInput!): CenterTraining!
-    deleteCenterTraining(id: ID!): Boolean!
-    
-    # Batch Training Mutations
-    createBatchTraining(input: BatchTrainingInput!): BatchTraining!
-    updateBatchTraining(id: ID!, input: BatchTrainingInput!): BatchTraining!
-    deleteBatchTraining(id: ID!): Boolean!
   }
 `;
 
-// Merge all type definitions by combining them into an array
+// Merge all type definitions
 const typeDefs = [
   baseTypeDefs,
   userTypeDefs,
   trainingTypeDefs,
   dashboardTypeDefs,
+  employeeTypeDefs,
 ];
 
 // Merge all resolvers
@@ -83,6 +72,7 @@ const resolvers = mergeResolvers([
   userResolvers,
   trainingResolvers,
   dashboardResolvers,
+  employeeResolvers,
 ]);
 
 export default makeExecutableSchema({

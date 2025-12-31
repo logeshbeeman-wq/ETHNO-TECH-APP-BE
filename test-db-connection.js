@@ -34,7 +34,6 @@ async function testDatabaseConnection() {
         // Step 4: Check for training tables
         console.log('Step 4: Checking for training tables...');
         const centerTrainingExists = tables.some(t => Object.values(t)[0] === 'center_training');
-        const batchTrainingExists = tables.some(t => Object.values(t)[0] === 'batch_training');
 
         if (centerTrainingExists) {
             console.log('✅ center_training table exists');
@@ -50,24 +49,6 @@ async function testDatabaseConnection() {
             }
         } else {
             console.log('❌ center_training table NOT found');
-            console.log('   ⚠️  Please run: db/migrations/create_training_tables.sql');
-        }
-        console.log('');
-
-        if (batchTrainingExists) {
-            console.log('✅ batch_training table exists');
-
-            // Get count
-            const [batchCount] = await conn.query('SELECT COUNT(*) as count FROM batch_training');
-            console.log(`   Records: ${batchCount.count}`);
-
-            // Get sample data
-            if (batchCount.count > 0) {
-                const batchSample = await conn.query('SELECT * FROM batch_training LIMIT 1');
-                console.log('   Sample record:', JSON.stringify(batchSample[0], null, 2));
-            }
-        } else {
-            console.log('❌ batch_training table NOT found');
             console.log('   ⚠️  Please run: db/migrations/create_training_tables.sql');
         }
         console.log('');
@@ -107,15 +88,14 @@ async function testDatabaseConnection() {
         console.log(`✅ Connection: Successful`);
         console.log(`✅ Total Tables: ${tables.length}`);
         console.log(`${centerTrainingExists ? '✅' : '❌'} Center Training Table: ${centerTrainingExists ? 'Ready' : 'Missing'}`);
-        console.log(`${batchTrainingExists ? '✅' : '❌'} Batch Training Table: ${batchTrainingExists ? 'Ready' : 'Missing'}`);
         console.log(`${usersExists ? '✅' : '❌'} Users Table: ${usersExists ? 'Ready' : 'Missing'}`);
 
-        if (!centerTrainingExists || !batchTrainingExists) {
+        if (!centerTrainingExists) {
             console.log('\n⚠️  ACTION REQUIRED:');
             console.log('   Run the migration file to create training tables:');
             console.log('   db/migrations/create_training_tables.sql');
         } else {
-            console.log('\n🎉 All training tables are ready!');
+            console.log('\n🎉 Center training table is ready!');
             console.log('   You can now use the GraphQL API.');
         }
         console.log('========================================\n');

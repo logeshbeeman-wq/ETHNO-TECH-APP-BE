@@ -1,6 +1,5 @@
 // src/services/trainingService.js
 import CenterTraining from '../models/CenterTraining.js';
-import BatchTraining from '../models/BatchTraining.js';
 
 /**
  * Service layer for training-related business logic
@@ -9,7 +8,6 @@ import BatchTraining from '../models/BatchTraining.js';
 class TrainingService {
     constructor(connection) {
         this.centerTrainingModel = new CenterTraining(connection);
-        this.batchTrainingModel = new BatchTraining(connection);
     }
 
     // Center Training Services
@@ -60,58 +58,6 @@ class TrainingService {
         return await this.centerTrainingModel.findByTechnology(technology);
     }
 
-    // Batch Training Services
-    async getAllBatchTrainings() {
-        return await this.batchTrainingModel.getAll();
-    }
-
-    async getBatchTrainingById(id) {
-        const training = await this.batchTrainingModel.findById(id);
-        if (!training) {
-            throw new Error(`Batch training with ID ${id} not found`);
-        }
-        return training;
-    }
-
-    async createBatchTraining(data) {
-        // Add business logic validation here if needed
-        this.validateTrainingDates(data.startTrainingDate, data.endTrainingDate);
-        return await this.batchTrainingModel.create(data);
-    }
-
-    async updateBatchTraining(id, data) {
-        // Verify the record exists
-        await this.getBatchTrainingById(id);
-
-        // Validate dates if they're being updated
-        if (data.startTrainingDate || data.endTrainingDate) {
-            const existing = await this.batchTrainingModel.findById(id);
-            const startDate = data.startTrainingDate || existing.startTrainingDate;
-            const endDate = data.endTrainingDate || existing.endTrainingDate;
-            this.validateTrainingDates(startDate, endDate);
-        }
-
-        return await this.batchTrainingModel.update(id, data);
-    }
-
-    async deleteBatchTraining(id) {
-        // Verify the record exists before deleting
-        await this.getBatchTrainingById(id);
-        return await this.batchTrainingModel.delete(id);
-    }
-
-    async getBatchTrainingsByBatch(batch) {
-        return await this.batchTrainingModel.findByBatch(batch);
-    }
-
-    async getBatchTrainingsByDepartment(department) {
-        return await this.batchTrainingModel.findByDepartment(department);
-    }
-
-    async getBatchTrainingsByTechnology(technology) {
-        return await this.batchTrainingModel.findByTechnology(technology);
-    }
-
     // Shared utility methods
     validateTrainingDates(startDate, endDate) {
         const start = new Date(startDate);
@@ -128,33 +74,75 @@ class TrainingService {
     // Analytics and reporting methods
     async getTrainingStatistics() {
         const centerTrainings = await this.centerTrainingModel.getAll();
-        const batchTrainings = await this.batchTrainingModel.getAll();
 
         return {
             totalCenterTrainings: centerTrainings.length,
-            totalBatchTrainings: batchTrainings.length,
-            totalTrainings: centerTrainings.length + batchTrainings.length,
+            totalTrainings: centerTrainings.length,
             centerTrainingsCompleted: centerTrainings.filter(t => t.examinationStatus === 'Completed').length,
-            batchTrainingsCompleted: batchTrainings.filter(t => t.examinationStatus === 'Completed').length,
         };
     }
 
     async getUpcomingTrainings() {
         const today = new Date().toISOString().split('T')[0];
         const allCenterTrainings = await this.centerTrainingModel.getAll();
-        const allBatchTrainings = await this.batchTrainingModel.getAll();
 
         const upcomingCenter = allCenterTrainings.filter(
-            t => t.startTrainingDate >= today
-        );
-        const upcomingBatch = allBatchTrainings.filter(
             t => t.startTrainingDate >= today
         );
 
         return {
             centerTrainings: upcomingCenter,
-            batchTrainings: upcomingBatch,
-            total: upcomingCenter.length + upcomingBatch.length
+            total: upcomingCenter.length
+        };
+    }
+
+    async getEmployeeStats(employeeId, startDate, endDate) {
+        const centerTrainings = await this.centerTrainingModel.getAll();
+
+        const allTrainings = centerTrainings.map(t => ({ ...t, source: 'center' }));
+
+        let filtered = allTrainings.filter(t => t.employeeId === employeeId);
+
+        if (startDate) {
+            filtered = filtered.filter(t => t.startTrainingDate >= startDate);
+        }
+        if (endDate) {
+            filtered = filtered.filter(t => t.endTrainingDate <= endDate);
+        }
+
+        let totalWeeks = 0;
+        let fdpCount = 0;
+        let certificationCount = 0;
+        let trainerName = '';
+
+        filtered.forEach(t => {
+            if (!trainerName) trainerName = t.trainerName;
+
+            // Calculate weeks
+            const start = new Date(t.startTrainingDate);
+            const end = new Date(t.endTrainingDate);
+            const diffInMs = Math.abs(end - start);
+            const weeks = diffInMs / (1000 * 60 * 60 * 24 * 7);
+            totalWeeks += weeks;
+
+            // FDP count (if fdp fields exist and are not 'None' or empty)
+            if ((t.fdpReceived && t.fdpReceived !== 'None' && t.fdpReceived !== 'No') ||
+                (t.fdpTaken && t.fdpTaken !== 'None' && t.fdpTaken !== 'No')) {
+                fdpCount++;
+            }
+
+            // Certification count
+            if (t.certification && t.certification !== 'None' && t.certification !== 'No') {
+                certificationCount++;
+            }
+        });
+
+        return {
+            employeeId,
+            name: trainerName || 'Unknown',
+            totalWeeks: Math.round(totalWeeks * 10) / 10,
+            fdpCount,
+            certificationCount
         };
     }
 }

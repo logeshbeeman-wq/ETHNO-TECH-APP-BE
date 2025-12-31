@@ -1,9 +1,9 @@
 // Test Update Non-existent ID
 import { pool } from './src/db.js';
-import BatchTraining from './src/models/BatchTraining.js';
+import CenterTraining from './src/models/CenterTraining.js';
 
 async function testUpdate() {
-    const model = new BatchTraining(pool);
+    const model = new CenterTraining(pool);
     try {
         console.log(`Updating record ID: 9999 (should not exist)`);
         const result = await model.update(9999, {

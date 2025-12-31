@@ -1,9 +1,9 @@
-// Test Update Batch Training
+// Test Update Center Training
 import { pool } from './src/db.js';
-import BatchTraining from './src/models/BatchTraining.js';
+import CenterTraining from './src/models/CenterTraining.js';
 
 async function testUpdate() {
-    const model = new BatchTraining(pool);
+    const model = new CenterTraining(pool);
     try {
         // 1. Get a record first
         const records = await model.getAll();

@@ -95,35 +95,9 @@ class User {
   }
 
   // Get all users
-  // In src/models/CenterTraining.js, update the getAll method
-async getAll() {
-    try {
-        const rows = await this.connection.query(`
-            SELECT 
-                id,
-                DATE_FORMAT(start_training_date, '%Y-%m-%d') as startTrainingDate,
-                DATE_FORMAT(end_training_date, '%Y-%m-%d') as endTrainingDate,
-                center,
-                strength,
-                technology,
-                trainer_name as trainerName,
-                trainer_type as trainerType,
-                certification,
-                training_status as trainingStatus,
-                examination_status as examinationStatus,
-                employee_id as employeeId,
-                fdp,
-                created_at as createdAt,
-                updated_at as updatedAt
-            FROM center_training
-            ORDER BY start_training_date DESC
-        `);
-        return rows;
-    } catch (error) {
-        console.error('Error getting all center trainings:', error);
-        throw new Error(`Failed to get center training records: ${error.message}`);
-    }
-}
+  async getAll() {
+    return this.getAllUsers();
+  }
 
   // In src/models/User.js
   // In src/models/User.js
@@ -240,8 +214,17 @@ async getAll() {
         throw new Error('No valid fields provided for update');
       }
 
+      const fieldMapping = {
+        username: 'username',
+        email: 'email',
+        password: 'password',
+        role: 'role',
+        phoneNumber: 'phone_number',
+        status: 'status'
+      };
+
       const setClause = Object.keys(validFields)
-        .map(key => `${key} = ?`)
+        .map(key => `${fieldMapping[key]} = ?`)
         .join(', ');
 
       const values = [...Object.values(validFields), id];

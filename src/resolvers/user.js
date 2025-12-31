@@ -2,7 +2,7 @@
 export const userResolvers = {
   Query: {
     // Get user by ID
-    user: async (_, { id }, { user: currentUser, db }) => {
+    user: async (_, { id }, { user: currentUser, models }) => {
       try {
         console.log('=== Fetching user ===');
         console.log('Current user:', JSON.stringify(currentUser, null, 2));
@@ -12,7 +12,7 @@ export const userResolvers = {
         }
 
         console.log('Fetching user with ID:', id);
-        const user = await db.user.findById(id);
+        const user = await models.User.findById(id);
 
         if (!user) {
           throw new Error('User not found');
@@ -34,7 +34,7 @@ export const userResolvers = {
       }
     },
 
-    allUsers: async (_, __, { user: currentUser, db }) => {
+    allUsers: async (_, __, { user: currentUser, models }) => {
       try {
         console.log('=== allUsers resolver ===');
         console.log('Current user:', JSON.stringify(currentUser, null, 2));
@@ -47,7 +47,7 @@ export const userResolvers = {
         //   throw new Error('Admin access required');
         // }
         console.log('Fetching all users...');
-        const users = await db.user.getAllUsers();
+        const users = await models.User.getAllUsers();
         console.log(`Returning ${users.length} users`);
 
         return users;
@@ -63,7 +63,7 @@ export const userResolvers = {
     },
 
     // Get all non-superadmin users
-    regularUsers: async (_, __, { user: currentUser, db }) => {
+    regularUsers: async (_, __, { user: currentUser, models }) => {
       try {
         console.log('=== regularUsers resolver ===');
 
@@ -75,7 +75,7 @@ export const userResolvers = {
           throw new Error('Admin access required');
         }
         console.log('Fetching non-superadmin users...');
-        const users = await db.user.getAllExceptSuperadmin();
+        const users = await models.User.getAllExceptSuperadmin();
 
         // Ensure we return an array, even if empty
         const result = Array.isArray(users) ? users : (users ? [users] : []);
@@ -94,7 +94,7 @@ export const userResolvers = {
 
   // In user.js resolvers
   Mutation: {
-    updateUser: async (_, { input }, { user: currentUser, db }) => {
+    updateUser: async (_, { input }, { user: currentUser, models }) => {
       try {
         console.log('=== updateUser ===');
         console.log('Current user:', JSON.stringify(currentUser, null, 2));
@@ -116,7 +116,7 @@ export const userResolvers = {
           throw new Error('Not authorized to change user roles');
         }
 
-        const updatedUser = await db.user.update(id, updates);
+        const updatedUser = await models.User.update(id, updates);
         return updatedUser;
       } catch (error) {
         console.error('Error in updateUser resolver:', {
@@ -127,14 +127,14 @@ export const userResolvers = {
       }
     },
 
-    deleteUser: async (_, { id }, { user: currentUser, db }) => {
+    deleteUser: async (_, { id }, { user: currentUser, models }) => {
       try {
         console.log('=== deleteUser ===');
         if (!currentUser) throw new Error('Authentication required');
         if (currentUser.role !== 'superadmin') throw new Error('Not authorized');
 
-        const result = await db.user.delete(id);
-        return true; // The schema says Boolean!, so we return true
+        const result = await models.User.delete(id);
+        return true;
       } catch (error) {
         console.error('Error in deleteUser resolver:', error);
         throw error;

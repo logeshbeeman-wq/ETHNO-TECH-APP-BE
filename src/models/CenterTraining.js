@@ -9,11 +9,9 @@ class CenterTraining {
     formatDateForDb(dateInput) {
         if (!dateInput) return null;
         try {
-            // If it's a timestamp string or number (like '1766601000000')
             if (!isNaN(dateInput) && !isNaN(parseFloat(dateInput))) {
                 return new Date(Number(dateInput)).toISOString().split('T')[0];
             }
-            // If it's a generic date string, try to parse and format it
             const d = new Date(dateInput);
             if (!isNaN(d.getTime())) {
                 return d.toISOString().split('T')[0];
@@ -21,44 +19,45 @@ class CenterTraining {
         } catch (error) {
             console.error('Date parsing error:', error);
         }
-        return dateInput; // Fallback
+        return dateInput;
     }
 
     // Create a new center training record
-    async create({
-        startTrainingDate,
-        endTrainingDate,
-        center,
-        strength,
-        technology,
-        trainerName,
-        trainerType,
-        certification,
-        trainingStatus,
-        examinationStatus,
-        employeeId,
-        fdp
-    }) {
+    async create(data) {
         try {
+            const {
+                centerId, startTrainingDate, endTrainingDate, center,
+                batch, departments, yearSem, strength, technology,
+                labNo, trainerName, trainerType, certification,
+                trainingStatus, examinationStatus, employeeId,
+                fdpReceived, fdpTaken
+            } = data;
+
             const result = await this.connection.query(
                 `INSERT INTO center_training 
-        (start_training_date, end_training_date, center, strength, technology, 
-         trainer_name, trainer_type, certification, training_status, 
-         examination_status, employee_id, fdp) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (center_id, start_training_date, end_training_date, center, batch, departments, year_sem, 
+         strength, technology, lab_no, trainer_name, trainer_type, certification, 
+         training_status, examination_status, employee_id, fdp_received, fdp_taken) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
+                    centerId,
                     this.formatDateForDb(startTrainingDate),
                     this.formatDateForDb(endTrainingDate),
                     center,
+                    batch,
+                    departments,
+                    yearSem,
                     strength,
                     technology,
+                    labNo,
                     trainerName,
                     trainerType,
                     certification,
                     trainingStatus,
                     examinationStatus,
                     employeeId,
-                    fdp
+                    fdpReceived,
+                    fdpTaken
                 ]
             );
 
@@ -75,18 +74,24 @@ class CenterTraining {
             const rows = await this.connection.query(
                 `SELECT 
           id,
+          center_id as centerId,
           DATE_FORMAT(start_training_date, '%Y-%m-%d') as startTrainingDate,
           DATE_FORMAT(end_training_date, '%Y-%m-%d') as endTrainingDate,
           center,
+          batch,
+          departments,
+          year_sem as yearSem,
           strength,
           technology,
+          lab_no as labNo,
           trainer_name as trainerName,
           trainer_type as trainerType,
           certification,
           training_status as trainingStatus,
           examination_status as examinationStatus,
           employee_id as employeeId,
-          fdp,
+          fdp_received as fdpReceived,
+          fdp_taken as fdpTaken,
           created_at as createdAt,
           updated_at as updatedAt
         FROM center_training 
@@ -107,18 +112,24 @@ class CenterTraining {
             const rows = await this.connection.query(
                 `SELECT 
           id,
+          center_id as centerId,
           start_training_date as startTrainingDate,
           end_training_date as endTrainingDate,
           center,
+          batch,
+          departments,
+          year_sem as yearSem,
           strength,
           technology,
+          lab_no as labNo,
           trainer_name as trainerName,
           trainer_type as trainerType,
           certification,
           training_status as trainingStatus,
           examination_status as examinationStatus,
           employee_id as employeeId,
-          fdp,
+          fdp_received as fdpReceived,
+          fdp_taken as fdpTaken,
           created_at as createdAt,
           updated_at as updatedAt
         FROM center_training
@@ -136,18 +147,24 @@ class CenterTraining {
     async update(id, fields) {
         try {
             const fieldMapping = {
+                centerId: 'center_id',
                 startTrainingDate: 'start_training_date',
                 endTrainingDate: 'end_training_date',
                 center: 'center',
+                batch: 'batch',
+                departments: 'departments',
+                yearSem: 'year_sem',
                 strength: 'strength',
                 technology: 'technology',
+                labNo: 'lab_no',
                 trainerName: 'trainer_name',
                 trainerType: 'trainer_type',
                 certification: 'certification',
                 trainingStatus: 'training_status',
                 examinationStatus: 'examination_status',
                 employeeId: 'employee_id',
-                fdp: 'fdp'
+                fdpReceived: 'fdp_received',
+                fdpTaken: 'fdp_taken'
             };
 
             const updates = [];
@@ -156,8 +173,6 @@ class CenterTraining {
             Object.keys(fields).forEach(key => {
                 if (fieldMapping[key] && fields[key] !== undefined) {
                     updates.push(`${fieldMapping[key]} = ?`);
-
-                    // Format if it's a date field
                     if (key === 'startTrainingDate' || key === 'endTrainingDate') {
                         values.push(this.formatDateForDb(fields[key]));
                     } else {
@@ -167,17 +182,11 @@ class CenterTraining {
             });
 
             if (updates.length === 0) {
-                throw new Error('No valid fields provided for update');
+                return this.findById(id);
             }
 
             values.push(id);
-
-            const sql = `UPDATE center_training SET ${updates.join(', ')} WHERE id = ?`;
-            console.log('Executing Center Update SQL:', sql);
-            console.log('With values:', values);
-
-            await this.connection.query(sql, values);
-
+            await this.connection.query(`UPDATE center_training SET ${updates.join(', ')} WHERE id = ?`, values);
             return this.findById(id);
         } catch (error) {
             console.error('Error updating center training:', error);
@@ -188,11 +197,7 @@ class CenterTraining {
     // Delete center training
     async delete(id) {
         try {
-            const result = await this.connection.query(
-                'DELETE FROM center_training WHERE id = ?',
-                [id]
-            );
-
+            const result = await this.connection.query('DELETE FROM center_training WHERE id = ?', [id]);
             return result.affectedRows > 0;
         } catch (error) {
             console.error('Error deleting center training:', error);
@@ -200,97 +205,61 @@ class CenterTraining {
         }
     }
 
-    // Filter by center
-    // In src/models/CenterTraining.js, update the findByCenter method
-async findByCenter(center) {
-    try {
-        const rows = await this.connection.query(`
-            SELECT 
-                id,
-                DATE_FORMAT(start_training_date, '%Y-%m-%d') as startTrainingDate,
-                DATE_FORMAT(end_training_date, '%Y-%m-%d') as endTrainingDate,
-                center,
-                strength,
-                technology,
-                trainer_name as trainerName,
-                trainer_type as trainerType,
-                certification,
-                training_status as trainingStatus,
-                examination_status as examinationStatus,
-                employee_id as employeeId,
-                fdp
-            FROM center_training 
-            WHERE center = ?
-            ORDER BY start_training_date DESC`, 
-            [center]
-        );
-        return rows;
-    } catch (error) {
-        console.error('Error finding center training by center:', error);
-        throw new Error(`Failed to find center training records: ${error.message}`);
-    }
-}
-
-// In src/models/CenterTraining.js, update the findByTechnology method
-async findByTechnology(technology) {
-    try {
-        const rows = await this.connection.query(`
-            SELECT 
-                id,
-                DATE_FORMAT(start_training_date, '%Y-%m-%d') as startTrainingDate,
-                DATE_FORMAT(end_training_date, '%Y-%m-%d') as endTrainingDate,
-                center,
-                strength,
-                technology,
-                trainer_name as trainerName,
-                trainer_type as trainerType,
-                certification,
-                training_status as trainingStatus,
-                examination_status as examinationStatus,
-                employee_id as employeeId,
-                fdp
-            FROM center_training 
-            WHERE technology = ?
-            ORDER BY start_training_date DESC`, 
-            [technology]
-        );
-        return rows;
-    } catch (error) {
-        console.error('Error finding center training by technology:', error);
-        throw new Error(`Failed to find center training records: ${error.message}`);
-    }
-}
-
-    // Filter by technology
-    async findByTechnology(technology) {
+    // Dynamic filtering for Center Training
+    async findFiltered(filter = {}) {
         try {
-            const rows = await this.connection.query(
-                `SELECT 
-          id,
-          start_training_date as startTrainingDate,
-          end_training_date as endTrainingDate,
-          center,
-          strength,
-          technology,
-          trainer_name as trainerName,
-          trainer_type as trainerType,
-          certification,
-          training_status as trainingStatus,
-          examination_status as examinationStatus,
-          employee_id as employeeId,
-          fdp,
-          created_at as createdAt,
-          updated_at as updatedAt
-        FROM center_training 
-        WHERE technology = ?
-        ORDER BY created_at DESC`,
-                [technology]
-            );
+            let sql = `
+            SELECT 
+                id,
+                center_id as centerId,
+                DATE_FORMAT(start_training_date, '%Y-%m-%d') as startTrainingDate,
+                DATE_FORMAT(end_training_date, '%Y-%m-%d') as endTrainingDate,
+                center,
+                batch,
+                departments,
+                year_sem as yearSem,
+                strength,
+                technology,
+                lab_no as labNo,
+                trainer_name as trainerName,
+                trainer_type as trainerType,
+                certification,
+                training_status as trainingStatus,
+                examination_status as examinationStatus,
+                employee_id as employeeId,
+                fdp_received as fdpReceived,
+                fdp_taken as fdpTaken,
+                created_at as createdAt,
+                updated_at as updatedAt
+            FROM center_training 
+            WHERE 1=1
+            `;
+            const params = [];
 
+            const mapping = {
+                centerId: 'center_id',
+                center: 'center',
+                batch: 'batch',
+                yearSem: 'year_sem',
+                technology: 'technology',
+                trainerType: 'trainer_type',
+                trainingStatus: 'training_status',
+                trainerName: 'trainer_name'
+            };
+
+            Object.keys(filter).forEach(key => {
+                if (mapping[key] && filter[key] !== undefined && filter[key] !== null) {
+                    sql += ` AND ${mapping[key]} = ?`;
+                    params.push(filter[key]);
+                }
+            });
+
+            sql += ' ORDER BY start_training_date DESC';
+            const rows = await this.connection.query(sql, params);
             return rows;
         } catch (error) {
-            console.error('Error finding center trainings by technology:', error);
-            throw new Error('Failed to find center training records');
+            console.error('Error in findFiltered:', error);
+            throw new Error(`Failed to filter center training records: ${error.message}`);
         }
     }
 }

@@ -9,7 +9,7 @@ export const typeDefs = gql`
 
   type TraineeDistribution {
     permanent: Int!
-    contract: Int!
+    internalContract: Int!
     student: Int!
     certificate: Int!
   }
@@ -38,12 +38,40 @@ export const typeDefs = gql`
 
   type KeyMetrics {
     permanentTrainees: KeyMetric!
-    contractTrainees: KeyMetric!
+    internalContractTrainees: KeyMetric!
     studentsTrained: KeyMetric!
     certificateStudents: KeyMetric!
+    avgPercentage: Float!
+  }
+
+  type EmployeeStats {
+    employeeId: String!
+    name: String
+    totalWeeks: Float!
+    fdpCount: Int!
+    certificationCount: Int!
+  }
+
+  type DashboardCard {
+    id: ID!
+    title: String!
+    value: Int!
+    change: Int!  
+    changeType: String!
+    isPercentage: Boolean
+  }
+
+  type DashboardCards {
+    totalTrainees: DashboardCard!
+    activeTraining: DashboardCard!
+    coursesOffered: DashboardCard!
+    completionRate: DashboardCard!
+    lastUpdated: String!
   }
 
   type Query {
     dashboardStats: DashboardStats!
+    dashboardCards: DashboardCards!
+    employeeStats(employeeId: String!, startDate: String, endDate: String): EmployeeStats!
   }
 `;

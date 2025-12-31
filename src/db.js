@@ -10,8 +10,8 @@ const pool = mariadb.createPool({
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'root',
   database: process.env.DB_NAME || 'ethno_db',
-  // connectionLimit: 10,
-  // multipleStatements: true
+  connectionLimit: 10,
+  multipleStatements: true
 });
 
 console.log('Database connection pool created:', pool);
@@ -63,7 +63,7 @@ const initializeDatabase = async () => {
     // Check if superadmin exists
     const [rows] = await pool.query(
       'SELECT id FROM users WHERE username = ? OR email = ?',
-      ['superadmin', 'admin@example.com']
+      ['superadmin', 'admin@gmail.com']
     );
 
     // If no superadmin exists, create one
@@ -72,11 +72,11 @@ const initializeDatabase = async () => {
 
       await pool.query(
         'INSERT INTO users (username, email, password, phone_number, role) VALUES (?, ?, ?, ?, ?)',
-        ['superadmin', 'admin@example.com', hashedPassword, '0000000000', 'superadmin']
+        ['superadmin', 'admin@gmail.com', hashedPassword, '0000000000', 'superadmin']
       );
       console.log('✅ Default superadmin user created');
+      console.log('   Email: admin@gmail.com');
       console.log('   Username: superadmin');
-      // console.log('   Password: Admin@123');
     }
 
     console.log('✅ Database initialized successfully');
