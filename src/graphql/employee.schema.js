@@ -29,12 +29,12 @@ export const employeeTypeDefs = gql`
     designation: String
     grade: String
     qualification: String
-    overallExperience: String
-    ethnotechExperience: String
-    subjects: String
+    overallExperience: FlexibleString
+    ethnotechExperience: FlexibleString
+    subjects: FlexibleString
     address: String
-    contactDetail: String
-    emergencyContactDetail: String
+    contactDetail: FlexibleString
+    emergencyContactDetail: FlexibleString
     bloodGroup: String
     photoName: String
     photoUrl: String
@@ -79,6 +79,7 @@ export const employeeTypeDefs = gql`
     createEmployee(input: EmployeeInput!): EmployeeResponse!
     updateEmployee(id: ID!, input: EmployeeInput!): EmployeeResponse!
     deleteEmployee(id: ID!): DeleteEmployeeResponse!
+    bulkUploadEmployees(input: [EmployeeInput!]!): BulkUploadResponse!
   }
 `;
 

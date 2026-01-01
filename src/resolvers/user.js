@@ -1,38 +1,34 @@
 // src/resolvers/user.js
 export const userResolvers = {
   Query: {
-    // Get user by ID
+    // Get user by ID (Aliased to getUser as well)
     user: async (_, { id }, { user: currentUser, models }) => {
       try {
         console.log('=== Fetching user ===');
-        console.log('Current user:', JSON.stringify(currentUser, null, 2));
-
         if (!currentUser) {
           throw new Error('Authentication required');
         }
 
-        console.log('Fetching user with ID:', id);
         const user = await models.User.findById(id);
 
         if (!user) {
           throw new Error('User not found');
         }
 
-        // Users can view their own profile, admins can view any profile
-        if (currentUser.id !== id && currentUser.role !== 'admin') {
+        // Users can view their own profile, admins or superadmins can view any profile
+        if (currentUser.id.toString() !== id.toString() &&
+          currentUser.role !== 'admin' &&
+          currentUser.role !== 'superadmin') {
           throw new Error('Not authorized to view this user');
         }
 
         return user;
       } catch (error) {
-        console.error('Error in user resolver:', {
-          message: error.message,
-          stack: error.stack,
-          timestamp: new Date().toISOString()
-        });
+        console.error('Error in user resolver:', error.message);
         throw error;
       }
     },
+    getUser: (...args) => userResolvers.Query.user(...args),
 
     allUsers: async (_, __, { user: currentUser, models }) => {
       try {

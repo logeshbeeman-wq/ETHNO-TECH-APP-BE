@@ -2,7 +2,7 @@
 -- This file creates the center_training table for managing training data
 
 -- Center Training Table
-DROP TABLE IF EXISTS center_training;
+-- DROP TABLE IF EXISTS center_training; -- REMOVED to prevent data loss
 CREATE TABLE IF NOT EXISTS center_training (
   id INT AUTO_INCREMENT PRIMARY KEY,
   center_id INT,
@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS center_training (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Sample data for Center Training
+/*
 INSERT INTO center_training 
   (center_id, start_training_date, end_training_date, center, batch, departments, year_sem, 
    strength, technology, lab_no, trainer_name, trainer_type, certification, 
@@ -48,3 +49,4 @@ VALUES
    (3, '2024-02-05', '2024-03-05', 'Mumbai Center', '2024-2025', 'Information Technology', '2nd Year - Sem 4', 
    40, 'Cloud Computing', 'Lab 202', 'Sarah Johnson', 'Permanent', 'Azure Certified', 
    'Y', 'In Progress', 'EMP004', 'Cloud Technologies', 'Cloud Technologies');
+*/

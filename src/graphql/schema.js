@@ -11,6 +11,8 @@ import { typeDefs as dashboardTypeDefs } from './dashboard/schema.js';
 import { resolvers as dashboardResolvers } from './dashboard/resolvers.js';
 import { employeeTypeDefs } from './employee.schema.js';
 import { employeeResolvers } from '../resolvers/employee.js';
+import { scalarTypeDefs } from './scalars.schema.js';
+import { scalarResolvers } from '../resolvers/scalars.js';
 
 const baseTypeDefs = gql`
   type User {
@@ -55,6 +57,13 @@ const baseTypeDefs = gql`
     updateUser(input: UpdateUserInput!): User!
     deleteUser(id: ID!): Boolean!
   }
+
+  type BulkUploadResponse {
+    success: Boolean!
+    message: String
+    count: Int
+    errors: [String]
+  }
 `;
 
 // Merge all type definitions
@@ -64,6 +73,7 @@ const typeDefs = [
   trainingTypeDefs,
   dashboardTypeDefs,
   employeeTypeDefs,
+  scalarTypeDefs,
 ];
 
 // Merge all resolvers
@@ -73,6 +83,7 @@ const resolvers = mergeResolvers([
   trainingResolvers,
   dashboardResolvers,
   employeeResolvers,
+  scalarResolvers,
 ]);
 
 export default makeExecutableSchema({

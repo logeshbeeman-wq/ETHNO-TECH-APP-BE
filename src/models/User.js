@@ -104,97 +104,52 @@ class User {
   async getAllUsers() {
     try {
       console.log('=== getAllUsers START ===');
-      console.log('Database connection:', this.connection ? 'Connected' : 'Not connected');
 
-      // First, check if the table exists
-      try {
-        const [tables] = await this.connection.query(`
-        SELECT TABLE_NAME 
-        FROM INFORMATION_SCHEMA.TABLES 
-        WHERE TABLE_SCHEMA = DATABASE() 
-        AND TABLE_NAME = 'users'
-      `);
-        console.log('Tables check:', tables);
-      } catch (tableError) {
-        console.error('Error checking tables:', tableError.message);
-      }
+      const query = `
+        SELECT 
+          id, 
+          username, 
+          email, 
+          phone_number as phoneNumber, 
+          role, 
+          status, 
+          created_at as createdAt 
+        FROM users
+      `;
 
-      // Try a simple count query first
-      try {
-        const [count] = await this.connection.query('SELECT COUNT(*) as count FROM users');
-        console.log('User count:', count);
-      } catch (countError) {
-        console.error('Error counting users:', countError.message);
-      }
-
-      // Now try the actual query
-      console.log('Executing query: SELECT * FROM users');
-      // MariaDB returns results directly as an array
-      const rows = await this.connection.query('SELECT * FROM users');
-
-      console.log('Query result:', {
-        rowsCount: rows ? rows.length : 0
-      });
-
-      if (rows && rows.length > 0) {
-        console.log(`Found ${rows.length} users`);
-        console.log('First user sample:', JSON.stringify(rows[0], null, 2));
-      } else {
-        console.log('No users found in the database');
-      }
+      const rows = await this.connection.query(query);
 
       return Array.isArray(rows) ? rows : [];
     } catch (error) {
-      console.error('Error in getAllUsers:', {
-        message: error.message,
-        sql: error.sql,
-        code: error.code,
-        errno: error.errno,
-        sqlState: error.sqlState,
-        sqlMessage: error.sqlMessage,
-        stack: error.stack
-      });
+      console.error('Error in getAllUsers:', error);
       return [];
-    } finally {
-      console.log('=== getAllUsers END ===');
     }
   }
 
   async getAllExceptSuperadmin() {
     try {
       console.log('=== Starting getAllExceptSuperadmin ===');
-      console.log('Connection details:', {
-        database: this.connection,
-        user: this.connection
-      });
 
-      // First, check if the table exists
-      const tables = await this.connection.query(
-        "SHOW TABLES LIKE 'users'"
-      );
-      console.log('Tables check:', tables.length > 0 ? 'Users table exists' : 'Users table does NOT exist');
+      const query = `
+        SELECT 
+          id, 
+          username, 
+          email, 
+          phone_number as phoneNumber, 
+          role, 
+          status, 
+          created_at as createdAt 
+        FROM users 
+        WHERE role != ?
+      `;
 
-      // Get all users for debugging
-      const allUsers = await this.connection.query('SELECT * FROM users');
-      console.log('All users in database:', allUsers);
-
-      // Then get non-superadmin users
-      // MariaDB returns results directly as an array, no destructuring needed
-      const rows = await this.connection.query(
-        'SELECT * FROM users WHERE role != ?',
-        ['superadmin']
-      );
+      const rows = await this.connection.query(query, ['superadmin']);
 
       console.log('Non-superadmin users found:', rows);
       return rows;
     } catch (error) {
-      console.error('Error in getAllExceptSuperadmin:', {
-        message: error.message,
-        sql: error.sql,
-        code: error.code,
-        stack: error.stack
-      });
-      return []; // Return empty array on error
+      console.error('Error in getAllExceptSuperadmin:', error);
+      return [];
     }
   }
   // Update user

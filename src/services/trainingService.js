@@ -97,42 +97,72 @@ class TrainingService {
     }
 
     async getEmployeeStats(employeeId, startDate, endDate) {
-        const centerTrainings = await this.centerTrainingModel.getAll();
+        console.log(`=== Analyzing Stats for Employee: ${employeeId} ===`);
+        console.log(`Range: ${startDate || 'ANY'} to ${endDate || 'ANY'}`);
 
-        const allTrainings = centerTrainings.map(t => ({ ...t, source: 'center' }));
+        // 1. Fetch ALL records for this employee to analyze their full history
+        const allRecords = await this.centerTrainingModel.findFiltered({ employeeId });
+        console.log(`Total records found for this employee: ${allRecords.length}`);
 
-        let filtered = allTrainings.filter(t => t.employeeId === employeeId);
+        // 2. Filter based on date range overlap
+        // A training session is relevant if it overlaps with the requested range.
+        const resultFiltered = allRecords.filter(t => {
+            // Convert to dates for comparison
+            const sessionStart = t.startTrainingDate;
+            const sessionEnd = t.endTrainingDate;
 
-        if (startDate) {
-            filtered = filtered.filter(t => t.startTrainingDate >= startDate);
-        }
-        if (endDate) {
-            filtered = filtered.filter(t => t.endTrainingDate <= endDate);
-        }
+            // If no range provided, include everything
+            if (!startDate && !endDate) return true;
+
+            let isMatch = true;
+
+            // Session must have started before our range ends
+            if (endDate && sessionStart > endDate) isMatch = false;
+
+            // Session must have ended after our range starts
+            if (startDate && sessionEnd < startDate) isMatch = false;
+
+            return isMatch;
+        });
+
+        console.log(`Records matching date range: ${resultFiltered.length}`);
 
         let totalWeeks = 0;
         let fdpCount = 0;
         let certificationCount = 0;
         let trainerName = '';
+        const centers = new Set();
 
-        filtered.forEach(t => {
-            if (!trainerName) trainerName = t.trainerName;
+        resultFiltered.forEach(t => {
+            if (!trainerName && t.trainerName) trainerName = t.trainerName;
+            if (t.center) centers.add(t.center);
 
-            // Calculate weeks
-            const start = new Date(t.startTrainingDate);
-            const end = new Date(t.endTrainingDate);
-            const diffInMs = Math.abs(end - start);
-            const weeks = diffInMs / (1000 * 60 * 60 * 24 * 7);
-            totalWeeks += weeks;
+            // Calculate weeks using the portion of the training that falls WITHIN the range
+            if (t.startTrainingDate && t.endTrainingDate) {
+                const sDate = new Date(t.startTrainingDate);
+                const eDate = new Date(t.endTrainingDate);
 
-            // FDP count (if fdp fields exist and are not 'None' or empty)
-            if ((t.fdpReceived && t.fdpReceived !== 'None' && t.fdpReceived !== 'No') ||
-                (t.fdpTaken && t.fdpTaken !== 'None' && t.fdpTaken !== 'No')) {
+                // Adjust start/end to fit within the filter range for accurate week calculation
+                const filterStart = startDate ? new Date(startDate) : sDate;
+                const filterEnd = endDate ? new Date(endDate) : eDate;
+
+                const effectiveStart = sDate < filterStart ? filterStart : sDate;
+                const effectiveEnd = eDate > filterEnd ? filterEnd : eDate;
+
+                if (!isNaN(effectiveStart) && !isNaN(effectiveEnd) && effectiveEnd > effectiveStart) {
+                    const diffInMs = effectiveEnd - effectiveStart;
+                    const weeks = diffInMs / (1000 * 60 * 60 * 24 * 7);
+                    totalWeeks += weeks;
+                }
+            }
+
+            // FDP and Certification checks (exclude 'None', 'No', 'NA')
+            if ((t.fdpReceived && !['None', 'No', 'NA'].includes(t.fdpReceived)) ||
+                (t.fdpTaken && !['None', 'No', 'NA'].includes(t.fdpTaken))) {
                 fdpCount++;
             }
 
-            // Certification count
-            if (t.certification && t.certification !== 'None' && t.certification !== 'No') {
+            if (t.certification && !['None', 'No', 'NA'].includes(t.certification)) {
                 certificationCount++;
             }
         });
@@ -142,7 +172,9 @@ class TrainingService {
             name: trainerName || 'Unknown',
             totalWeeks: Math.round(totalWeeks * 10) / 10,
             fdpCount,
-            certificationCount
+            certificationCount,
+            centerCount: centers.size,
+            trainings: resultFiltered
         };
     }
 }

@@ -5,6 +5,7 @@ export const userTypeDefs = gql`
   extend type Query {
     # Get a single user by ID
     user(id: ID!): User
+    getUser(id: ID!): User
     
     # Get all users (admin only)
     allUsers: [User!]!

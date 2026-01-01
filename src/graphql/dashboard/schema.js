@@ -50,6 +50,8 @@ export const typeDefs = gql`
     totalWeeks: Float!
     fdpCount: Int!
     certificationCount: Int!
+    centerCount: Int!
+    trainings: [CenterTraining!]!
   }
 
   type DashboardCard {
@@ -70,8 +72,8 @@ export const typeDefs = gql`
   }
 
   type Query {
-    dashboardStats: DashboardStats!
-    dashboardCards: DashboardCards!
+    dashboardStats(filter: CenterTrainingFilterInput): DashboardStats!
+    dashboardCards(filter: CenterTrainingFilterInput): DashboardCards!
     employeeStats(employeeId: String!, startDate: String, endDate: String): EmployeeStats!
   }
 `;

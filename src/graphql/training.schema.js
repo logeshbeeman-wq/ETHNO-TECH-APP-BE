@@ -30,23 +30,25 @@ export const trainingTypeDefs = gql`
   # Input Types for Center Training
   input CreateCenterTrainingInput {
     centerId: Int
-    startTrainingDate: String!
-    endTrainingDate: String!
-    center: String!
-    batch: String!
-    departments: String!
-    yearSem: String!
-    strength: Int!
-    technology: String!
-    labNo: String!
-    trainerName: String!
-    trainerType: String!
-    certification: String!
-    trainingStatus: String!
-    examinationStatus: String!
-    employeeId: String!
-    fdpReceived: String!
-    fdpTaken: String!
+    startTrainingDate: String
+    endTrainingDate: String
+    center: String
+    batch: String
+    departments: String
+    yearSem: String
+    strength: FlexibleString
+    technology: String
+    labNo: String
+    trainerName: String
+    trainerType: String
+    certification: String
+    trainingStatus: String
+    examinationStatus: String
+    employeeId: String
+    fdpReceived: FlexibleString
+    fdpTaken: FlexibleString
+    fdp: String # To handle legacy/extra field
+    status: String # To handle legacy/extra field
   }
 
   input UpdateCenterTrainingInput {
@@ -58,7 +60,7 @@ export const trainingTypeDefs = gql`
     batch: String
     departments: String
     yearSem: String
-    strength: Int
+    strength: FlexibleString
     technology: String
     labNo: String
     trainerName: String
@@ -67,8 +69,8 @@ export const trainingTypeDefs = gql`
     trainingStatus: String
     examinationStatus: String
     employeeId: String
-    fdpReceived: String
-    fdpTaken: String
+    fdpReceived: FlexibleString
+    fdpTaken: FlexibleString
   }
 
   input CenterTrainingFilterInput {
@@ -97,5 +99,6 @@ export const trainingTypeDefs = gql`
     createCenterTraining(input: CreateCenterTrainingInput!): CenterTraining!
     updateCenterTraining(input: UpdateCenterTrainingInput!): CenterTraining!
     deleteCenterTraining(id: ID!): Boolean!
+    bulkUploadCenterTrainings(input: [CreateCenterTrainingInput!]!): BulkUploadResponse!
   }
 `;

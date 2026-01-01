@@ -150,6 +150,15 @@ export const employeeResolvers = {
                 }
 
                 const mappedInput = mapEmployeeInput(input);
+
+                // Ensure array/object fields are stringified if they aren't already
+                // Since input comes from GraphQL, FlexibleString fields are already strings (serialized by the scalar).
+                // BUT, if we directly passed an object in input variable and the scalar serialized it to JSON string, it's fine.
+                // However, mapEmployeeInput might need to be aware if any extra processing is needed.
+                // The issue user reported "String cannot represent a non string value: ["React"]" happened at GraphQL validation layer BEFORE resolver.
+                // By updating the scalar to accept objects/arrays, we solve the validation error.
+                // The Resolver receives the value returned by scalar's parseValue. 
+
                 const employee = await employeeModel.create(mappedInput);
 
                 return {
@@ -206,6 +215,40 @@ export const employeeResolvers = {
             } catch (error) {
                 return { success: false, message: error.message };
             }
+        },
+
+        bulkUploadEmployees: async (_, { input }, { models }) => {
+            const employeeModel = models?.Employee || new Employee(pool);
+            let successCount = 0;
+            const errors = [];
+
+            for (const empData of input) {
+                try {
+                    if (!empData.employeeId) {
+                        errors.push(`Row without employeeId skipped.`);
+                        continue;
+                    }
+
+                    const taken = await employeeModel.isEmployeeIdTaken(empData.employeeId);
+                    if (taken) {
+                        errors.push(`Employee ID ${empData.employeeId} already exists.`);
+                        continue;
+                    }
+
+                    const mappedInput = mapEmployeeInput(empData);
+                    await employeeModel.create(mappedInput);
+                    successCount++;
+                } catch (error) {
+                    errors.push(`Error creating employee ${empData.employeeId || 'unknown'}: ${error.message}`);
+                }
+            }
+
+            return {
+                success: successCount > 0,
+                message: `Successfully uploaded ${successCount} employees.`,
+                count: successCount,
+                errors: errors
+            };
         }
     }
 };

@@ -11,34 +11,78 @@ let dashboardCache = {
 /**
  * Fetches fresh dashboard data from the database
  */
-async function fetchDashboardData() {
+/**
+ * Fetches fresh dashboard data from the database with optional filters
+ */
+async function fetchFilteredDashboardData(filter = {}) {
   const conn = await pool.getConnection();
   try {
+    const conditions = [];
+    const params = [];
+
+    // Always include the status check
+    conditions.push("training_status IN ('Completed', 'Ongoing', 'In Progress', 'Y', 'Yes')");
+
+    if (filter.center) {
+      conditions.push("center = ?");
+      params.push(filter.center);
+    }
+    if (filter.technology) {
+      conditions.push("technology LIKE ?");
+      params.push(`%${filter.technology}%`);
+    }
+    if (filter.yearSem) {
+      conditions.push("year_sem = ?");
+      params.push(filter.yearSem);
+    }
+    if (filter.batch) {
+      conditions.push("batch = ?");
+      params.push(filter.batch);
+    }
+    // Add other filters as needed
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
     // Get counts for each trainee type from center_training table
-    // Expand training_status filter to include common values like 'Y', 'Yes', 'Completed', 'Ongoing'
     const centerTrainingRows = await conn.query(`
       SELECT 
-        SUM(CASE WHEN trainer_type = 'Permanent' THEN 1 ELSE 0 END) as permanent_count,
-        SUM(CASE WHEN trainer_type = 'Contract' OR trainer_type = 'Internal-Contract' THEN 1 ELSE 0 END) as contract_count,
-        SUM(CASE WHEN trainer_type = 'Student' THEN 1 ELSE 0 END) as student_count,
-        SUM(CASE WHEN certification = 'Yes' THEN 1 ELSE 0 END) as certificate_count,
+        SUM(CASE WHEN trainer_type = 'Internal' THEN 1 ELSE 0 END) as permanent_count,
+        SUM(CASE WHEN trainer_type = 'Internal-Contract' THEN 1 ELSE 0 END) as contract_count,
+        SUM(strength) as total_students_trained,
+        SUM(CASE WHEN examination_status = 'Completed' THEN strength ELSE 0 END) as total_certified_students,
+        COUNT(DISTINCT employee_id) as total_trainers,
         COUNT(*) as total_trainees
       FROM center_training
-      WHERE training_status IN ('Completed', 'Ongoing', 'Y', 'Yes')
-    `);
+      ${whereClause}
+    `, params);
 
     const centerTrainingCounts = centerTrainingRows[0] || {};
 
-    // Use counts from center_training table (convert BigInt to Number as mariadb returns BigInt for SUM/COUNT)
+    // Use counts from center_training table
     const counts = {
       permanent_count: Number(centerTrainingCounts.permanent_count || 0),
       contract_count: Number(centerTrainingCounts.contract_count || 0),
-      student_count: Number(centerTrainingCounts.student_count || 0),
-      certificate_count: Number(centerTrainingCounts.certificate_count || 0),
+      student_count: Number(centerTrainingCounts.total_students_trained || 0),
+      certificate_count: Number(centerTrainingCounts.total_certified_students || 0),
+      trainers_count: Number(centerTrainingCounts.total_trainers || 0),
       total_trainees: Number(centerTrainingCounts.total_trainees || 0)
     };
 
-    // Get employee training status from center_training
+    // Employee Training Status List
+    // We reuse the user filters but maybe NOT the hardcoded status check if it filters out too much?
+    // Original query: SELECT form center_training ORDER BY name LIMIT 100
+    // Let's add the USER specified filters.
+
+    const listConditions = [];
+    const listParams = [];
+
+    if (filter.center) { listConditions.push("center = ?"); listParams.push(filter.center); }
+    if (filter.technology) { listConditions.push("technology LIKE ?"); listParams.push(`%${filter.technology}%`); }
+    if (filter.yearSem) { listConditions.push("year_sem = ?"); listParams.push(filter.yearSem); }
+    if (filter.batch) { listConditions.push("batch = ?"); listParams.push(filter.batch); }
+
+    const listWhere = listConditions.length > 0 ? `WHERE ${listConditions.join(' AND ')}` : '';
+
     const centerTraining = await conn.query(`
       SELECT 
         trainer_name as name,
@@ -47,20 +91,28 @@ async function fetchDashboardData() {
         certification as certificate,
         center as department
       FROM center_training
+      ${listWhere}
       ORDER BY name
       LIMIT 100
-    `);
+    `, listParams);
 
     const employeeTrainingStatus = Array.isArray(centerTraining) ? centerTraining : [];
 
     // Calculate percentages
-    const total = counts.total_trainees || 1;
+    const totalSessions = counts.total_trainees || 1;
+    const totalStudents = counts.student_count || 1;
 
     // Individual percentages
-    const permPct = Math.round(((counts.permanent_count || 0) / total) * 1000) / 10;
-    const contractPct = Math.round(((counts.contract_count || 0) / total) * 1000) / 10;
-    const studentPct = Math.round(((counts.student_count || 0) / total) * 1000) / 10;
-    const certificatePct = Math.round(((counts.certificate_count || 0) / total) * 1000) / 10;
+    const permPct = Math.round(((counts.permanent_count || 0) / totalSessions) * 1000) / 10;
+    const contractPct = Math.round(((counts.contract_count || 0) / totalSessions) * 1000) / 10;
+
+    // Students Trained - currently treated as the base population (100% or just display count)
+    // If we want to show % of growth or something we'd need history.
+    // For now, let's just use 100% or keep it consistent with UI expectations.
+    const studentPct = 100;
+
+    // Certified Students % relative to Total Students Trained
+    const certificatePct = Math.round(((counts.certificate_count || 0) / totalStudents) * 1000) / 10;
 
     // Average percentage of all metrics
     const avgPercentage = Math.round(((permPct + contractPct + studentPct + certificatePct) / 4) * 10) / 10;
@@ -83,13 +135,18 @@ async function fetchDashboardData() {
           count: counts.certificate_count || 0,
           percentage: certificatePct
         },
+        trainers: {
+          count: counts.trainers_count || 0,
+          percentage: 0
+        },
         avgPercentage: avgPercentage
       },
       traineeDistribution: {
         permanent: counts.permanent_count || 0,
         internalContract: counts.contract_count || 0,
         student: counts.student_count || 0,
-        certificate: counts.certificate_count || 0
+        certificate: counts.certificate_count || 0,
+        trainers: counts.trainers_count || 0
       },
       pieChartData: [
         { name: 'Permanent', value: counts.permanent_count || 0 },
@@ -116,7 +173,7 @@ async function updateDashboardCache() {
 
   try {
     dashboardCache.isUpdating = true;
-    const data = await fetchDashboardData();
+    const data = await fetchFilteredDashboardData({}); // Fetch without filters for cache
     dashboardCache.data = data;
     dashboardCache.lastUpdated = new Date().toISOString();
   } catch (error) {
@@ -151,4 +208,4 @@ function getDashboardData() {
   };
 }
 
-export { initDashboardCache, getDashboardData, updateDashboardCache };
+export { initDashboardCache, getDashboardData, updateDashboardCache, fetchFilteredDashboardData };

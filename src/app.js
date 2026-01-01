@@ -137,6 +137,28 @@ export default async function createApolloServer() {
     bodyParser.json(),
     // Log GraphQL operations with timing
     (req, res, next) => {
+      // Helper to recursively strip metadata fields from objects
+      const stripMetadata = (obj) => {
+        if (Array.isArray(obj)) {
+          return obj.map(stripMetadata);
+        } else if (obj !== null && typeof obj === 'object') {
+          const newObj = {};
+          const fieldsToStrip = ['__typename', 'createdAt', 'updatedAt'];
+          for (const key in obj) {
+            if (!fieldsToStrip.includes(key)) {
+              newObj[key] = stripMetadata(obj[key]);
+            }
+          }
+          return newObj;
+        }
+        return obj;
+      };
+
+      // Strip metadata from variables if they exist
+      if (req.body && req.body.variables) {
+        req.body.variables = stripMetadata(req.body.variables);
+      }
+
       const userAgent = req.headers['user-agent'] || '';
       const isBrowserRequest = userAgent.includes('Mozilla') ||
         userAgent.includes('Chrome') ||
@@ -150,9 +172,6 @@ export default async function createApolloServer() {
 
       res.send = function (body) {
         const operation = req.body?.operationName || 'Anonymous Operation';
-        // console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - ${operation}`);
-        // console.log(`Response time: ${Date.now() - start}ms`);
-        // console.log('---');
         return originalSend.call(this, body);
       };
 
