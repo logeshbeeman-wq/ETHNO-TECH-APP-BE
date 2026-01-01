@@ -244,7 +244,8 @@ class CenterTraining {
                 technology: 'technology',
                 trainerType: 'trainer_type',
                 trainingStatus: 'training_status',
-                trainerName: 'trainer_name'
+                trainerName: 'trainer_name',
+                employeeId: 'employee_id'
             };
 
             Object.keys(filter).forEach(key => {
