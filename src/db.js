@@ -3,15 +3,28 @@ import bcrypt from 'bcryptjs';
 import 'dotenv/config';
 
 // Create a connection pool
+// In db.js
 const pool = mariadb.createPool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '3306'),
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'root',
-  database: process.env.DB_NAME || 'ETHNO_DB',
+  database: process.env.DB_NAME || 'ethno_db',
   connectionLimit: 10,
   multipleStatements: true
 });
+
+console.log('Database connection pool created:', pool);
+
+// Add this test connection
+pool.getConnection()
+  .then(conn => {
+    console.log('✅ Database connected successfully');
+    conn.release();
+  })
+  .catch(err => {
+    console.error('❌ Database connection error:', err.message);
+  });
 
 // Test the database connection
 async function testConnection() {
@@ -32,40 +45,38 @@ async function testConnection() {
 // Initialize database with required tables
 const initializeDatabase = async () => {
   try {
-    // Drop the users table if it exists
-    await pool.query('DROP TABLE IF EXISTS users');
-    
-    // Recreate the users table with the correct schema
+    // Only create the users table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        username VARCHAR(255) NOT NULL UNIQUE,
-        email VARCHAR(255) NOT NULL UNIQUE,
-        password VARCHAR(255) NOT NULL,
-        role ENUM('user', 'admin', 'superadmin') NOT NULL DEFAULT 'user',
-        status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  email VARCHAR(100) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  phone_number VARCHAR(20) NOT NULL,
+  role VARCHAR(20) NOT NULL DEFAULT 'user',
+  status VARCHAR(20) NOT NULL DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
     `);
 
     // Check if superadmin exists
     const [rows] = await pool.query(
       'SELECT id FROM users WHERE username = ? OR email = ?',
-      ['superadmin', 'admin@example.com']
+      ['superadmin', 'admin@gmail.com']
     );
 
     // If no superadmin exists, create one
     if (!rows || rows.length === 0) {
       const hashedPassword = await bcrypt.hash('Admin@123', 10);
-      
+
       await pool.query(
-        'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
-        ['superadmin', 'admin@example.com', hashedPassword, 'superadmin']
+        'INSERT INTO users (username, email, password, phone_number, role) VALUES (?, ?, ?, ?, ?)',
+        ['superadmin', 'admin@gmail.com', hashedPassword, '0000000000', 'superadmin']
       );
       console.log('✅ Default superadmin user created');
+      console.log('   Email: admin@gmail.com');
       console.log('   Username: superadmin');
-      // console.log('   Password: Admin@123');
     }
 
     console.log('✅ Database initialized successfully');
@@ -91,12 +102,6 @@ async function query(sql, params = []) {
     if (conn) await conn.release();
   }
 }
-
-// Initialize the database when this module is imported
-initializeDatabase().catch(err => {
-  console.error('❌ Failed to initialize database:', err);
-  process.exit(1);
-});
 
 // Export the connection pool and utility functions
 export { pool, testConnection, initializeDatabase, query };

@@ -1,17 +1,21 @@
 import config from './config/config.js';
 import createApolloServer from './app.js';
+import { runAllMigrations } from './db/migrationRunner.js';
 
 async function startServer() {
   try {
+    // Run database migrations before starting the server
+    await runAllMigrations();
+
     const { httpServer } = await createApolloServer();
     const port = config.port || 5000;
 
     await new Promise((resolve) => httpServer.listen({ port }, resolve));
-    
+
     console.log(`🚀 Server ready at http://localhost:${port}`);
     console.log(`🚀 GraphQL endpoint: http://localhost:${port}/graphql`);
     console.log(`🩺 Health check: http://localhost:${port}/health`);
-    
+
     return { httpServer };
   } catch (error) {
     console.error('Failed to start server:', error);
